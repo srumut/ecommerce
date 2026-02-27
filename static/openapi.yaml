@@ -6,9 +6,6 @@ info:
 servers:
   - url: /api/v1
 paths:
-  /:
-    get:
-      summary: just a placeholder for now 
   /users:
     get:
       summary: Returns all users.
@@ -35,7 +32,26 @@ paths:
           description: Username of the user.
       responses:
         '200':
-          description: A JSON object of an user.
+          description: A JSON object of the user.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: No user with the given username found.
+    delete:
+      summary: Delete and return the user with the given username.
+      description: Delete the user with the given username in the system.
+      parameters:
+        - in: path
+          name: username
+          schema:
+            type: string
+          required: true
+          description: Username of the user.
+      responses:
+        '200':
+          description: User deleted successfully.
           contennt:
             application/json:
               schema:
@@ -55,6 +71,45 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Store'
+  /stores/{slug}:
+    get:
+      summary: Return the store with the given slug.
+      description: Retrieve the store with the given slug in the system.
+      parameters:
+        - in: path
+          name: slug
+          schema:
+            type: string
+          required: true
+          description: Slug of the store.
+      responses:
+        '200':
+          description: A JSON object of the store.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Store'
+        '404':
+          description: No store with the given slug found.
+    delete:
+      summary: Delete and return the store with the given slug.
+      description: Delete the store with the given slug in the system.
+      parameters:
+        - in: path
+          name: slug
+          schema:
+            type: string
+          required: true
+          description: Slug of the store.
+      responses:
+        '200':
+          description: Store deleted successfully.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Store'
+        '404':
+          description: No store with the given slug found.
   /users/stores:
     get:
       summary: Returns users and their stores

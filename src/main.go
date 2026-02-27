@@ -40,7 +40,10 @@ func main() {
 	mux.HandleFunc("GET /api/v1/", makeHandler(indexHandler))
 	mux.HandleFunc("GET /api/v1/users", makeHandler(fetchAllUsers))
 	mux.HandleFunc("GET /api/v1/users/{username}", makeHandler(fetchSingleUser))
-	mux.HandleFunc("GET /api/v1/stores", makeHandler(fetchAllStoers))
+	mux.HandleFunc("DELETE /api/v1/users/{username}", makeHandler(deleteSingleUser))
+	mux.HandleFunc("GET /api/v1/stores", makeHandler(fetchAllStores))
+	mux.HandleFunc("GET /api/v1/stores/{slug}", makeHandler(fetchSingleStore))
+	mux.HandleFunc("DELETE /api/v1/stores/{slug}", makeHandler(deleteSingleStore))
 	mux.HandleFunc("GET /api/v1/users/stores", makeHandler(fetchUsersAndStores))
 
 	server := http.Server{Addr: ":8080", Handler: mux}
@@ -89,7 +92,25 @@ func fetchSingleUser(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func fetchAllStoers(w http.ResponseWriter, r *http.Request) error {
+func deleteSingleUser(w http.ResponseWriter, r *http.Request) error {
+	username := r.PathValue("username")
+	user, err := db.DeleteSingleUser(username)
+	if err != nil {
+		return utility.DetailedError(err)
+	}
+	if user.Username == "" {
+		http.NotFound(w, r)
+		return nil
+	}
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(user)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func fetchAllStores(w http.ResponseWriter, r *http.Request) error {
 	stores, err := db.GetAllStores()
 	if err != nil {
 		return err
@@ -97,6 +118,42 @@ func fetchAllStoers(w http.ResponseWriter, r *http.Request) error {
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(stores)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func fetchSingleStore(w http.ResponseWriter, r *http.Request) error {
+	slug := r.PathValue("slug")
+	store, err := db.GetSingleStore(slug)
+	if err != nil {
+		return utility.DetailedError(err)
+	}
+	if store.Slug == "" {
+		http.NotFound(w, r)
+		return nil
+	}
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(store)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func deleteSingleStore(w http.ResponseWriter, r *http.Request) error {
+	slug := r.PathValue("slug")
+	store, err := db.DeleteSingleStore(slug)
+	if err != nil {
+		return utility.DetailedError(err)
+	}
+	if store.Slug == "" {
+		http.NotFound(w, r)
+		return nil
+	}
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(store)
 	if err != nil {
 		return err
 	}

@@ -97,7 +97,7 @@ func (s *Storage) GetSingleUser(username string) (User, error) {
 					 is_active,
 					 created_at,
 					 updated_at
-			  FROM users WHERE users.username = $1;`
+			  FROM users WHERE username = $1;`
 	rows, err := s.db.Query(query, username)
 	if err != nil {
 		return user, utility.DetailedError(err)
@@ -105,7 +105,6 @@ func (s *Storage) GetSingleUser(username string) (User, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var user User
 		err = rows.Scan(
 			&user.Username,
 			&user.Email,
@@ -116,6 +115,27 @@ func (s *Storage) GetSingleUser(username string) (User, error) {
 		if err != nil {
 			return user, utility.DetailedError(err)
 		}
+	}
+
+	return user, nil
+}
+
+func (s *Storage) DeleteSingleUser(username string) (User, error) {
+	var user User
+	query := `DELETE FROM users WHERE username = $1
+			  RETURNING username, email, display_name, is_active, created_at, updated_at;`
+	row := s.db.QueryRow(query, username)
+	err := row.Scan(
+		&user.Username,
+		&user.Email,
+		&user.DisplayName,
+		&user.IsActive,
+		&user.CreatedAt,
+		&user.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return user, nil
+	} else if err != nil {
+		return user, utility.DetailedError(err)
 	}
 
 	return user, nil
@@ -150,6 +170,52 @@ func (s *Storage) GetAllStores() ([]Store, error) {
 	}
 
 	return stores, nil
+}
+
+func (s *Storage) GetSingleStore(slug string) (Store, error) {
+	var store Store
+	query := `SELECT name,
+					 slug,
+					 description,
+					 created_at
+			  FROM stores WHERE slug = $1;`
+	rows, err := s.db.Query(query, slug)
+	if err != nil {
+		return store, utility.DetailedError(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(
+			&store.Name,
+			&store.Slug,
+			&store.Description,
+			&store.CreatedAt)
+		if err != nil {
+			return store, utility.DetailedError(err)
+		}
+	}
+
+	return store, nil
+}
+
+func (s *Storage) DeleteSingleStore(slug string) (Store, error) {
+	var store Store
+	query := `DELETE FROM stores WHERE slug = $1
+			  RETURNING name, slug, description, created_at;`
+	row := s.db.QueryRow(query, slug)
+	err := row.Scan(
+		&store.Name,
+		&store.Slug,
+		&store.Description,
+		&store.CreatedAt)
+	if err == sql.ErrNoRows {
+		return store, nil
+	} else if err != nil {
+		return store, utility.DetailedError(err)
+	}
+
+	return store, nil
 }
 
 // TODO(umut): query filtering (fields to return, number of objects to return and etc.)
