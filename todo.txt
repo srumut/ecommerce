@@ -1,0 +1,17 @@
+[ ] query filtering and limiting for endpoints (for example return first or
+    second 50 users, return only usernames etc.)
+[ ] better error handling (respond specifically if username is not unique or email is not etc.)
+[ ] dont return errors as repond
+[ ] jwt
+[ ] hash and then store the password if password changes or new user is being created
+[ ] limit provided password to be not more than 72 bytes (or slice it and handle in multiple iterations)
+[x] hash the new password on update(put) and patch user endpoints
+[ ] 
+[ ] 
+[ ] 
+[ ] 
+[ ] 
+[ ] 
+[ ] 
+[ ] 
+[ ] 

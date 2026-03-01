@@ -73,8 +73,8 @@ for %%A in ("exec" "psql" "connect") do if "%1"==%%A (
     goto :eof
 )
 
-echo You should pass one of the following arguments: create, start, stop, exec
-echo for example %0 mcreate
+echo You should pass one of the following arguments: create, remove, start, stop, exec
+echo Example: %0 create
 
 
 ENDLOCAL

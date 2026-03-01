@@ -19,17 +19,32 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/User'
+    post:
+      summary: Creates a new user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '200':
+          description: User created successfully.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
   /users/{username}:
+    parameters:
+      - in: path
+        name: username
+        schema:
+          type: string
+        required: true
+        description: Username of the user.
     get:
       summary: Return the user with the given username.
       description: Retrieve the user with the given username in the system.
-      parameters:
-        - in: path
-          name: username
-          schema:
-            type: string
-          required: true
-          description: Username of the user.
       responses:
         '200':
           description: A JSON object of the user.
@@ -42,13 +57,6 @@ paths:
     delete:
       summary: Delete and return the user with the given username.
       description: Delete the user with the given username in the system.
-      parameters:
-        - in: path
-          name: username
-          schema:
-            type: string
-          required: true
-          description: Username of the user.
       responses:
         '200':
           description: User deleted successfully.
@@ -58,7 +66,48 @@ paths:
                 $ref: '#/components/schemas/User'
         '404':
           description: No user with the given username found.
+    put:
+      summary: Updates the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: User updated successfully.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: No user with the given username found.
+    patch:
+      summary: Update (patch) the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPatchRequest'
+      responses:
+        '200':
+          description: User updated successfully.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: No user with the given username found.
   /stores:
+    parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+        description: Slug of the store.
     get:
       summary: Returns all stores.
       description: Retrieve a list of all stores in the system.
@@ -75,13 +124,6 @@ paths:
     get:
       summary: Return the store with the given slug.
       description: Retrieve the store with the given slug in the system.
-      parameters:
-        - in: path
-          name: slug
-          schema:
-            type: string
-          required: true
-          description: Slug of the store.
       responses:
         '200':
           description: A JSON object of the store.
@@ -94,13 +136,6 @@ paths:
     delete:
       summary: Delete and return the store with the given slug.
       description: Delete the store with the given slug in the system.
-      parameters:
-        - in: path
-          name: slug
-          schema:
-            type: string
-          required: true
-          description: Slug of the store.
       responses:
         '200':
           description: Store deleted successfully.
@@ -157,6 +192,68 @@ components:
         - IsActive
         - CreatedAt
         - UpdatedAt
+    UserCreateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          example: neo
+        email:
+          type: string
+          format: email
+          example: tanderson@metacortex.com
+        password:
+          type: string
+          example: very$ecretpassword123
+        display_name:
+          type: string
+          example: Thomas A. Anderson
+        is_active:
+          type: boolean
+          example: true
+      required:
+        - username
+        - email
+        - password
+        - display_name
+    UserUpdateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Username of the user.
+        email:
+          type: string
+          format: email
+          description: Email address of the user.
+        display_name:
+          type: string
+          description: Display name of the user.
+        is_active:
+          type: boolean
+          description: Boolean representing if user's account in active or not.
+      required:
+        - username
+        - email
+        - display_name
+        - is_active
+    UserPatchRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Username of the user.
+        email:
+          type: string
+          format: email
+          description: Email address of the user.
+        display_name:
+          type: string
+          description: Display name of the user.
+        is_active:
+          type: boolean
+          description: Boolean representing if user's account in active or not.
+      required:
     Store:
       type: object
       properties:

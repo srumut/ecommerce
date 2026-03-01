@@ -1,7 +1,8 @@
-package utility
+package main
 
 import (
 	"fmt"
+	"path"
 	"runtime"
 	"strings"
 )
@@ -17,11 +18,15 @@ func GetLineNumber(skip int) string {
 	_, _, line, _ := runtime.Caller(skip)
 	return fmt.Sprintf("%v", line)
 }
+func ParentDirectoryOfThisFile() string {
+	_, file, _, _ := runtime.Caller(1)
+	return path.Dir(file)
+}
 
 func GetModuleName() string {
 	// the last / at the end actually not a part of the module name but
 	// I've put it there so that GetFunctionName above can return function name without it
-	return "github.com/srumut/another_go_api/"
+	return "github.com/srumut/ecommerce/"
 }
 
 func DetailedError(err error) error {
