@@ -27,10 +27,11 @@ type User struct {
 
 // TODO(umut): add updated at ?
 type Store struct {
-	Name        string
-	Slug        string
-	Description string
-	CreatedAt   time.Time
+	Name          string
+	Slug          string
+	Description   string
+	OwnerUsername string
+	CreatedAt     time.Time
 }
 
 type UserStores struct {
@@ -225,8 +226,6 @@ func (s *Storage) PatchSingleUser(username string, user UserRequestBody) (User, 
 	values = append(values, username)
 	queryBuilder.WriteString(fmt.Sprintf(" WHERE username = $%d RETURNING username, email, display_name, is_active, created_at, updated_at;", len(values)))
 	query := queryBuilder.String()
-	fmt.Println(query)
-	fmt.Printf("%+v\n", values)
 	row := s.db.QueryRow(query, values...)
 	err := row.Scan(
 		&result.Username,
@@ -249,8 +248,9 @@ func (s *Storage) GetAllStores() ([]Store, error) {
 	query := `SELECT name,
 					 slug,
 					 description,
-					 created_at
-			  FROM stores;`
+					 created_at,
+					 COALESCE(username, '') 
+			  FROM stores s LEFT JOIN users u ON u.id = s.owner_user_id;`
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, DetailedError(convertPgError(err))
@@ -264,7 +264,8 @@ func (s *Storage) GetAllStores() ([]Store, error) {
 			&store.Name,
 			&store.Slug,
 			&store.Description,
-			&store.CreatedAt)
+			&store.CreatedAt,
+			&store.OwnerUsername)
 		if err != nil {
 			return nil, DetailedError(convertPgError(err))
 		}
@@ -275,13 +276,42 @@ func (s *Storage) GetAllStores() ([]Store, error) {
 	return result, nil
 }
 
+func (s *Storage) CreateSingleStore(store StoreRequestBody) (Store, error) {
+	var result Store
+	query := `WITH inserted_store AS (
+				INSERT INTO stores (name, slug, description)
+				VALUES ($1, $2, $3)
+				RETURNING name, slug, description, created_at, owner_user_id
+			  )
+			  SELECT s.name, s.slug, s.description, s.created_at, COALESCE(u.username, '')
+			  FROM inserted_store s LEFT JOIN users u ON u.id = s.owner_user_id;`
+	row := s.db.QueryRow(query,
+		store.Name,
+		store.Slug,
+		store.Description)
+	err := row.Scan(
+		&result.Name,
+		&result.Slug,
+		&result.Description,
+		&result.CreatedAt,
+		&result.OwnerUsername)
+	if err == sql.ErrNoRows {
+		return result, nil
+	} else if err != nil {
+		return result, DetailedError(convertPgError(err))
+	}
+
+	return result, nil
+}
+
 func (s *Storage) GetSingleStore(slug string) (Store, error) {
 	var result Store
 	query := `SELECT name,
 					 slug,
 					 description,
-					 created_at
-			  FROM stores WHERE slug = $1;`
+					 created_at,
+					 COALESCE(username, ''),
+			  FROM stores s LEFT JOIN users u ON u.id = s.owner_user_id WHERE slug = $1;`
 	rows, err := s.db.Query(query, slug)
 	if err != nil {
 		return result, DetailedError(convertPgError(err))
@@ -293,7 +323,8 @@ func (s *Storage) GetSingleStore(slug string) (Store, error) {
 			&result.Name,
 			&result.Slug,
 			&result.Description,
-			&result.CreatedAt)
+			&result.CreatedAt,
+			&result.OwnerUsername)
 		if err != nil {
 			return result, DetailedError(convertPgError(err))
 		}
@@ -304,14 +335,97 @@ func (s *Storage) GetSingleStore(slug string) (Store, error) {
 
 func (s *Storage) DeleteSingleStore(slug string) (Store, error) {
 	var result Store
-	query := `DELETE FROM stores WHERE slug = $1
-			  RETURNING name, slug, description, created_at;`
+	query := `WITH deleted_store AS (
+				DELETE FROM stores WHERE slug = $1
+				RETURNING name, slug, description, created_at
+			  )
+			  SELECT name, slug, description, created_at, COALESCE(username, '')
+			  FROM deleted_store s LEFT JOIN users u ON u.id = s.owner_user_id;`
 	row := s.db.QueryRow(query, slug)
 	err := row.Scan(
 		&result.Name,
 		&result.Slug,
 		&result.Description,
-		&result.CreatedAt)
+		&result.CreatedAt,
+		&result.OwnerUsername)
+	if err == sql.ErrNoRows {
+		return result, nil
+	} else if err != nil {
+		return result, DetailedError(convertPgError(err))
+	}
+
+	return result, nil
+}
+
+func (s *Storage) UpdateSingleStore(slug string, store StoreRequestBody) (Store, error) {
+	var result Store
+	query := `WITH updated_store AS (
+				UPDATE stores SET slug = $1, name = $2, description = $3,
+				WHERE slug = $5
+				RETURNING slug, name, description, created_at;
+			  )
+			  SELECT name, slug, description, created_at, COALESCE(username, '')
+			  FROM updated_store s LEFT JOIN users u ON u.id = s.owner_user_id;`
+	row := s.db.QueryRow(query,
+		store.Slug,
+		store.Name,
+		store.Description,
+		slug)
+	err := row.Scan(
+		&result.Slug,
+		&result.Name,
+		&result.Description,
+		&result.CreatedAt,
+		&result.OwnerUsername)
+	if err == sql.ErrNoRows {
+		return result, nil
+	} else if err != nil {
+		return result, DetailedError(convertPgError(err))
+	}
+
+	return result, nil
+}
+
+func (s *Storage) PatchSingleStore(slug string, store StoreRequestBody) (Store, error) {
+	var result Store
+	var queryBuilder strings.Builder
+	values := []any{}
+
+	queryBuilder.WriteString("WITH patched_store AS ( UPDATE users SET")
+	if store.Slug != "" {
+		values = append(values, store.Slug)
+		queryBuilder.WriteString(fmt.Sprintf(" slug = $%d", len(values)))
+	}
+	if store.Name != "" {
+		values = append(values, store.Name)
+		if len(values) != 1 {
+			queryBuilder.WriteString(",")
+		}
+		queryBuilder.WriteString(fmt.Sprintf(" name = $%d", len(values)))
+	}
+	if store.Description != "" {
+		values = append(values, store.Description)
+		if len(values) != 1 {
+			queryBuilder.WriteString(",")
+		}
+		queryBuilder.WriteString(fmt.Sprintf(" description = $%d", len(values)))
+	}
+	values = append(values, slug)
+	queryBuilder.WriteString(fmt.Sprintf(
+		" WHERE slug = $%d "+
+			"RETURNING slug, name, description, created_at"+
+			")"+
+			"SELECT name, slug, description, created_at, COALESCE(username, '')"+
+			"FROM updated_store s LEFT JOIN users u ON u.id = s.owner_user_id;", len(values)))
+
+	query := queryBuilder.String()
+	row := s.db.QueryRow(query, values...)
+	err := row.Scan(
+		&result.Name,
+		&result.Slug,
+		&result.Description,
+		&result.CreatedAt,
+		&result.OwnerUsername)
 	if err == sql.ErrNoRows {
 		return result, nil
 	} else if err != nil {

@@ -26,7 +26,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserCreateRequest'
+              allOf:
+                - $ref: '#/components/schemas/UserRequest'
+              required:
+                - username
+                - email
+                - password
+                - display_name
       responses:
         '200':
           description: User created successfully.
@@ -73,7 +79,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserUpdateRequest'
+              allOf:
+                - $ref: '#/components/schemas/UserRequest'
+              required:
+                - username
+                - email
+                - password
+                - display_name
+                - is_active
       responses:
         '200':
           description: User updated successfully.
@@ -90,7 +103,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserPatchRequest'
+              $ref: '#/components/schemas/UserRequest'
       responses:
         '200':
           description: User updated successfully.
@@ -101,13 +114,6 @@ paths:
         '404':
           description: No user with the given username found.
   /stores:
-    parameters:
-      - in: path
-        name: slug
-        schema:
-          type: string
-        required: true
-        description: Slug of the store.
     get:
       summary: Returns all stores.
       description: Retrieve a list of all stores in the system.
@@ -120,7 +126,33 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Store'
+    post:
+      summary: Creates a new store.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/StoreRequest'
+              required:
+                - Name
+                - Slug 
+      responses:
+        '200':
+          description: Store created successfully.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Store'
   /stores/{slug}:
+    parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+        description: Slug of the store.
     get:
       summary: Return the store with the given slug.
       description: Retrieve the store with the given slug in the system.
@@ -145,6 +177,45 @@ paths:
                 $ref: '#/components/schemas/Store'
         '404':
           description: No store with the given slug found.
+    put:
+      summary: Updates the store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/StoreRequest'
+              required:
+                - Name
+                - Slug 
+                - Description
+      responses:
+        '200':
+          description: User updated successfully.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: No user with the given username found.
+    patch:
+      summary: Update (patch) the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreRequest'
+      responses:
+        '200':
+          description: User updated successfully.
+          contennt:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: No user with the given username found.
   /users/stores:
     get:
       summary: Returns users and their stores
@@ -192,7 +263,7 @@ components:
         - IsActive
         - CreatedAt
         - UpdatedAt
-    UserCreateRequest:
+    UserRequest:
       type: object
       properties:
         username:
@@ -211,49 +282,6 @@ components:
         is_active:
           type: boolean
           example: true
-      required:
-        - username
-        - email
-        - password
-        - display_name
-    UserUpdateRequest:
-      type: object
-      properties:
-        username:
-          type: string
-          description: Username of the user.
-        email:
-          type: string
-          format: email
-          description: Email address of the user.
-        display_name:
-          type: string
-          description: Display name of the user.
-        is_active:
-          type: boolean
-          description: Boolean representing if user's account in active or not.
-      required:
-        - username
-        - email
-        - display_name
-        - is_active
-    UserPatchRequest:
-      type: object
-      properties:
-        username:
-          type: string
-          description: Username of the user.
-        email:
-          type: string
-          format: email
-          description: Email address of the user.
-        display_name:
-          type: string
-          description: Display name of the user.
-        is_active:
-          type: boolean
-          description: Boolean representing if user's account in active or not.
-      required:
     Store:
       type: object
       properties:
@@ -275,6 +303,18 @@ components:
         - Slug       
         - Description
         - CreatedAt
+    StoreRequest:
+      type: object
+      properties:
+        Name:
+          type: string
+          example: MetaCortex
+        Slug:
+          type: string
+          example: meta-cortex
+        Description:
+          type: string
+          example: "MetaCortex is a leading software solutions provider specializing in enterprise applications, developer tools, and IT services, delivering innovative technology for modern businesses."
     UserStores:
       type: object
       properties:

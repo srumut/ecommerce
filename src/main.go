@@ -23,6 +23,12 @@ type UserRequestBody struct {
 	IsActive    bool   `json:"is_active"`
 }
 
+type StoreRequestBody struct {
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
+}
+
 var directory = ParentDirectoryOfThisFile()
 var templates = template.Must(template.ParseFiles(path.Join(directory, "../template/swagger-ui.html")))
 var db *Storage
@@ -57,6 +63,7 @@ func main() {
 	mux.HandleFunc("PATCH /api/v1/users/{username}", makeHandler(patchSingleUser))
 
 	mux.HandleFunc("GET /api/v1/stores", makeHandler(fetchAllStores))
+	mux.HandleFunc("POST /api/v1/stores", makeHandler(createSingleStore))
 	mux.HandleFunc("GET /api/v1/stores/{slug}", makeHandler(fetchSingleStore))
 	mux.HandleFunc("DELETE /api/v1/stores/{slug}", makeHandler(deleteSingleStore))
 	mux.HandleFunc("GET /api/v1/users/stores", makeHandler(fetchUsersAndStores))
@@ -296,6 +303,45 @@ func fetchAllStores(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func createSingleStore(w http.ResponseWriter, r *http.Request) error {
+	var store StoreRequestBody
+	err := json.NewDecoder(r.Body).Decode(&store)
+	if err != nil {
+		return DetailedError(err)
+	}
+
+	var errMsgBuilder strings.Builder
+	if store.Name == "" {
+		errMsgBuilder.WriteString("name")
+	}
+	if store.Slug == "" {
+		if errMsgBuilder.Len() != 0 {
+			errMsgBuilder.WriteString(", slug")
+		} else {
+			errMsgBuilder.WriteString("slug")
+		}
+	}
+	if errMsgBuilder.Len() != 0 {
+		return fmt.Errorf("%s field(s) must be provided.", errMsgBuilder.String())
+	}
+
+	result, err := db.CreateSingleStore(store)
+	if err != nil {
+		return DetailedError(err)
+	}
+	if result.Slug == "" {
+		http.NotFound(w, r)
+		return nil
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(result)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func fetchSingleStore(w http.ResponseWriter, r *http.Request) error {
 	slug := r.PathValue("slug")
 	result, err := db.GetSingleStore(slug)
@@ -324,6 +370,91 @@ func deleteSingleStore(w http.ResponseWriter, r *http.Request) error {
 		http.NotFound(w, r)
 		return nil
 	}
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(result)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateSingleStore(w http.ResponseWriter, r *http.Request) error {
+	slug := r.PathValue("slug")
+
+	var store StoreRequestBody
+	// NOTE(umut): if is_active is not provided it will be probably set to false
+	err := json.NewDecoder(r.Body).Decode(&store)
+	if err != nil {
+		return DetailedError(err)
+	}
+
+	var errMsgBuilder strings.Builder
+	if store.Name == "" {
+		errMsgBuilder.WriteString("name")
+	}
+	if store.Slug == "" {
+		if errMsgBuilder.Len() != 0 {
+			errMsgBuilder.WriteString(", slug")
+		} else {
+			errMsgBuilder.WriteString("slug")
+		}
+	}
+	if store.Description == "" {
+		if errMsgBuilder.Len() != 0 {
+			errMsgBuilder.WriteString(", description")
+		} else {
+			errMsgBuilder.WriteString("description")
+		}
+	}
+	if errMsgBuilder.Len() != 0 {
+		return fmt.Errorf("%s field(s) must be provided.", errMsgBuilder.String())
+	}
+
+	result, err := db.UpdateSingleStore(slug, store)
+	if err != nil {
+		return DetailedError(err)
+	}
+	// TODO(umut): should handle this case better
+	if result.Slug == "" {
+		http.NotFound(w, r)
+		return nil
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(result)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func patchSingleStore(w http.ResponseWriter, r *http.Request) error {
+	username := r.PathValue("username")
+
+	var user UserRequestBody
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		return DetailedError(err)
+	}
+
+	if user.Password != "" {
+		password_hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), 10)
+		if err != nil {
+			return DetailedError(err)
+		}
+		user.Password = string(password_hash)
+	}
+
+	result, err := db.PatchSingleUser(username, user)
+	if err != nil {
+		return DetailedError(err)
+	}
+	// TODO(umut): should handle this case better
+	if result.Username == "" {
+		http.NotFound(w, r)
+		return nil
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(result)
 	if err != nil {
